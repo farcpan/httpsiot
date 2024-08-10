@@ -72,7 +72,7 @@ export class MainStack extends Stack {
 				region: region,
 				accountId: accountId,
 				stage: props.context.stage,
-				roleAlias: roleAlias.roleArn,
+				roleAlias: roleAlias.attrRoleAliasArn,
 			},
 			runtime: Runtime.NODEJS_LATEST,
 			timeout: Duration.seconds(30),

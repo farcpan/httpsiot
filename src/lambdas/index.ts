@@ -13,7 +13,7 @@ export const createCertificateHandler = async (event: any, context: any) => {
 	const region = process.env['region'];
 	const accountId = process.env['accountId'];
 	const stage = process.env['stage'];
-	const roleAliasArn = process.env['roleAlias'];
+	const roleAlias = process.env['roleAlias'];
 
 	// リクエスト
 	const body = event.body;
@@ -50,7 +50,7 @@ export const createCertificateHandler = async (event: any, context: any) => {
 						{
 							Effect: 'Allow',
 							Action: ['iot:AssumeRoleWithCertificate'],
-							Resource: [roleAliasArn],
+							Resource: [roleAlias],
 						},
 					],
 				}),
