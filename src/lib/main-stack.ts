@@ -7,6 +7,7 @@ import { join } from 'path';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Table } from 'aws-cdk-lib/aws-dynamodb';
 import { EndpointType, RestApi, Cors, LambdaIntegration } from 'aws-cdk-lib/aws-apigateway';
+import { Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 
 interface MainStackProps extends StackProps {
 	context: ContextParameters;
@@ -50,6 +51,19 @@ export class MainStack extends Stack {
 			timeout: Duration.seconds(30),
 			logRetention: RetentionDays.ONE_DAY,
 		});
+		createCertificateFunction.addToRolePolicy(
+			new PolicyStatement({
+				effect: Effect.ALLOW,
+				actions: [
+					'iot:CreateThing',
+					'iot:CreatePolicy',
+					'iot:CreateKeysAndCertificate',
+					'iot:AttachPolicy',
+					'iot:AttachThingPrincipal',
+				],
+				resources: ['*'],
+			})
+		);
 
 		/////////////////////////////////////////////////////////////////////////////
 		// APIGateway
