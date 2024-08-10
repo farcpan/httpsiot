@@ -1,10 +1,150 @@
+import {
+	IoTClient,
+	CreateKeysAndCertificateCommand,
+	CreatePolicyCommand,
+	CreateThingCommand,
+	CreateKeysAndCertificateCommandOutput,
+	AttachPolicyCommand,
+	AttachThingPrincipalCommand,
+} from '@aws-sdk/client-iot';
+
 export const createCertificateHandler = async (event: any, context: any) => {
-	return {
+	// 環境変数
+	const region = process.env['region'];
+	const accountId = process.env['accountId'];
+	const stage = process.env['stage'];
+
+	// リクエスト
+	const body = event.body;
+	const { id } = JSON.parse(body) as { id: string };
+
+	const thingName = stage === 'prd' ? `thing-${id}` : `thing-${id}-${stage}`;
+
+	const client = new IoTClient();
+	// Thing作成
+	try {
+		await client.send(
+			new CreateThingCommand({
+				thingName: thingName,
+			})
+		);
+	} catch (e) {
+		return getResponse({
+			statusCode: 500,
+			body: JSON.stringify(e),
+		});
+	}
+
+	// ポリシー作成
+	const policyName = 'httpsiot_policy_' + id;
+	try {
+		await client.send(
+			new CreatePolicyCommand({
+				policyName: policyName,
+				policyDocument: JSON.stringify({
+					Version: '2012-10-17',
+					Statement: [
+						{
+							Effect: 'Allow',
+							Action: ['iot:Connect'],
+							Resource: ['*'],
+						},
+					],
+				}),
+			})
+		);
+	} catch (e) {
+		return getResponse({
+			statusCode: 500,
+			body: JSON.stringify(e),
+		});
+	}
+
+	// 証明書作成
+	let result: CreateKeysAndCertificateCommandOutput | null = null;
+	try {
+		result = await client.send(
+			new CreateKeysAndCertificateCommand({
+				setAsActive: true,
+			})
+		);
+	} catch (e) {
+		return getResponse({
+			statusCode: 500,
+			body: JSON.stringify(e),
+		});
+	}
+
+	if (
+		!result ||
+		!result.certificateArn ||
+		!result.certificateId ||
+		!result.certificatePem ||
+		!result.keyPair ||
+		!result.keyPair.PrivateKey
+	) {
+		return getResponse({
+			statusCode: 500,
+			body: JSON.stringify({ message: 'Failed to create keys/certificates' }),
+		});
+	}
+
+	const certificateArn = result.certificateArn;
+	const certificateId = result.certificateId;
+	const certificatePem = result.certificatePem;
+	const keyPair = result.keyPair;
+
+	// 証明書にポリシーをアタッチ
+	try {
+		await client.send(
+			new AttachPolicyCommand({
+				policyName: policyName,
+				target: certificateArn,
+			})
+		);
+	} catch (e) {
+		return getResponse({
+			statusCode: 500,
+			body: JSON.stringify(e),
+		});
+	}
+
+	// Thingに証明書をアタッチ
+	try {
+		await client.send(
+			new AttachThingPrincipalCommand({
+				thingName: thingName,
+				principal: certificateArn,
+			})
+		);
+	} catch (e) {
+		return getResponse({
+			statusCode: 500,
+			body: JSON.stringify(e),
+		});
+	}
+
+	return getResponse({
 		statusCode: 200,
+		body: JSON.stringify({
+			certificateArn: certificateArn,
+			certificateId: certificateId,
+			certificatePem: certificatePem,
+			keypair: keyPair,
+		}),
+	});
+};
+
+/////////////////////////////////////////////////////////////////////////////
+// 内部処理
+/////////////////////////////////////////////////////////////////////////////
+const getResponse = ({ statusCode, body }: { statusCode: number; body: string }) => {
+	return {
+		statusCode: statusCode,
 		headers: {
 			'Access-Control-Allow-Origin': '*',
 			'Content-Type': 'application/json; charset=utf-8',
 		},
-		body: JSON.stringify(event),
+		body: body,
 	};
 };

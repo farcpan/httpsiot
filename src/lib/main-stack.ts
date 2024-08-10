@@ -17,6 +17,7 @@ export class MainStack extends Stack {
 		super(scope, id, props);
 
 		const accountId = Stack.of(this).account;
+		const region = props.context.stageParameters.region;
 		console.log(`AccoutnId: ${accountId}`);
 
 		/////////////////////////////////////////////////////////////////////////////
@@ -40,7 +41,11 @@ export class MainStack extends Stack {
 			functionName: createCertificateFunctionId,
 			entry: nodejsLambdaFunctionPath,
 			handler: 'createCertificateHandler',
-			environment: {},
+			environment: {
+				region: region,
+				accountId: accountId,
+				stage: props.context.stage,
+			},
 			runtime: Runtime.NODEJS_LATEST,
 			timeout: Duration.seconds(30),
 			logRetention: RetentionDays.ONE_DAY,
@@ -72,7 +77,6 @@ export class MainStack extends Stack {
 		/////////////////////////////////////////////////////////////////////////////
 		// API URL
 		/////////////////////////////////////////////////////////////////////////////
-		const region = props.context.stageParameters.region;
 		const registerApiUrlId: string = props.context.getResourceId('api-base-url');
 		new CfnOutput(this, registerApiUrlId, {
 			value: `https://${restApi.restApiId}.execute-api.${region}.amazonaws.com/${stageName}/`,
