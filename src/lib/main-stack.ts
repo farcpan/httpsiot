@@ -7,7 +7,8 @@ import { join } from 'path';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Table } from 'aws-cdk-lib/aws-dynamodb';
 import { EndpointType, RestApi, Cors, LambdaIntegration } from 'aws-cdk-lib/aws-apigateway';
-import { Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import { CfnRoleAlias } from 'aws-cdk-lib/aws-iot';
 
 interface MainStackProps extends StackProps {
 	context: ContextParameters;
@@ -20,6 +21,31 @@ export class MainStack extends Stack {
 		const accountId = Stack.of(this).account;
 		const region = props.context.stageParameters.region;
 		console.log(`AccoutnId: ${accountId}`);
+
+		/////////////////////////////////////////////////////////////////////////////
+		// IAM Role for IoT Thing to get STS token
+		/////////////////////////////////////////////////////////////////////////////
+		const iotCoreCredentialProviderRoleId = props.context.getResourceId(
+			'iot-core-credential-provider-role'
+		);
+		const ioTCoreCredentialProviderRole = new Role(this, iotCoreCredentialProviderRoleId, {
+			roleName: iotCoreCredentialProviderRoleId,
+			assumedBy: new ServicePrincipal('credentials.iot.amazonaws.com'),
+		});
+		ioTCoreCredentialProviderRole.addToPolicy(
+			new PolicyStatement({
+				effect: Effect.ALLOW,
+				actions: ['*'], // ここは後で修正すること
+				resources: ['*'],
+			})
+		);
+
+		const roleAliasId = props.context.getResourceId('iot-core-credential-provider-role-alias');
+		const roleAlias = new CfnRoleAlias(this, roleAliasId, {
+			roleArn: ioTCoreCredentialProviderRole.roleArn,
+			credentialDurationSeconds: 3600,
+			roleAlias: roleAliasId,
+		});
 
 		/////////////////////////////////////////////////////////////////////////////
 		// DynamoDB
@@ -46,6 +72,7 @@ export class MainStack extends Stack {
 				region: region,
 				accountId: accountId,
 				stage: props.context.stage,
+				roleAlias: roleAlias.roleAlias ?? roleAliasId,
 			},
 			runtime: Runtime.NODEJS_LATEST,
 			timeout: Duration.seconds(30),

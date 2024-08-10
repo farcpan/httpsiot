@@ -13,6 +13,7 @@ export const createCertificateHandler = async (event: any, context: any) => {
 	const region = process.env['region'];
 	const accountId = process.env['accountId'];
 	const stage = process.env['stage'];
+	const roleAlias = process.env['roleAlias'];
 
 	// リクエスト
 	const body = event.body;
@@ -36,6 +37,8 @@ export const createCertificateHandler = async (event: any, context: any) => {
 	}
 
 	// ポリシー作成
+	/// AssumeRoleによりSTSトークンを取得できるようにする
+	/// CDK側で作成したRoleのAliasを指定してAssumeRole権限をポリシーに付与する
 	const policyName = 'httpsiot_policy_' + id;
 	try {
 		await client.send(
@@ -46,8 +49,8 @@ export const createCertificateHandler = async (event: any, context: any) => {
 					Statement: [
 						{
 							Effect: 'Allow',
-							Action: ['iot:Connect'],
-							Resource: ['*'],
+							Action: ['iot:AssumeRoleWithCertificate'],
+							Resource: [`arn:aws:iot:${region}:${accountId}:rolealias/${roleAlias}`],
 						},
 					],
 				}),
