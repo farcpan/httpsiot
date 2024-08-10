@@ -92,6 +92,17 @@ export class MainStack extends Stack {
 			})
 		);
 
+		const helloFunctionId = props.context.getResourceId('hello-func');
+		const helloFunction = new NodejsFunction(this, helloFunctionId, {
+			functionName: helloFunctionId,
+			entry: nodejsLambdaFunctionPath,
+			handler: 'helloHandler',
+			environment: {},
+			runtime: Runtime.NODEJS_LATEST,
+			timeout: Duration.seconds(30),
+			logRetention: RetentionDays.ONE_DAY,
+		});
+
 		/////////////////////////////////////////////////////////////////////////////
 		// APIGateway
 		/////////////////////////////////////////////////////////////////////////////
@@ -110,10 +121,13 @@ export class MainStack extends Stack {
 		});
 
 		const createCertificateLambdaIntegration = new LambdaIntegration(createCertificateFunction);
+		const helloLambdaIntegration = new LambdaIntegration(helloFunction);
 
 		const initResource = restApi.root.addResource('init');
+		const helloResource = restApi.root.addResource('hello');
 
 		initResource.addMethod('POST', createCertificateLambdaIntegration, {});
+		helloResource.addMethod('GET', helloLambdaIntegration, {});
 
 		/////////////////////////////////////////////////////////////////////////////
 		// API URL

@@ -138,6 +138,10 @@ export const createCertificateHandler = async (event: any, context: any) => {
 	});
 };
 
+export const helloHandler = async (event: any, context: any) => {
+	return getResponse({ statusCode: 200, body: JSON.stringify(event) });
+};
+
 /////////////////////////////////////////////////////////////////////////////
 // 内部処理
 /////////////////////////////////////////////////////////////////////////////
