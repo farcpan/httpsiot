@@ -30,6 +30,8 @@ $ curl --cert {.pem.crt} \
 https://{IoTCore Endpoint}/role-aliases/{role alias}/credentials
 ```
 
+`x-amzn-iot-thingname`ヘッダを設定しない場合、取得したトークンからThingNameを取得することができずIAMポリシーに設定したパラメータ`${credentials-iot:ThingName}`を利用できなくなるため注意すること。
+
 * `IoTCore Endpoint`は以下のコマンドで取得可能
     ```
     $ aws iot describe-endpoint --endpoint-type iot:CredentialProvider --region {region}
