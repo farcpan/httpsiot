@@ -6,7 +6,13 @@ import { Runtime } from 'aws-cdk-lib/aws-lambda';
 import { join } from 'path';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Table } from 'aws-cdk-lib/aws-dynamodb';
-import { EndpointType, RestApi, Cors, LambdaIntegration } from 'aws-cdk-lib/aws-apigateway';
+import {
+	EndpointType,
+	RestApi,
+	Cors,
+	LambdaIntegration,
+	AuthorizationType,
+} from 'aws-cdk-lib/aws-apigateway';
 import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { CfnPolicy, CfnRoleAlias } from 'aws-cdk-lib/aws-iot';
 
@@ -20,7 +26,6 @@ export class MainStack extends Stack {
 
 		const accountId = Stack.of(this).account;
 		const region = props.context.stageParameters.region;
-		console.log(`AccoutnId: ${accountId}`);
 
 		/////////////////////////////////////////////////////////////////////////////
 		// IAM Role for IoT Thing to get STS token
@@ -32,13 +37,6 @@ export class MainStack extends Stack {
 			roleName: iotCoreCredentialProviderRoleId,
 			assumedBy: new ServicePrincipal('credentials.iot.amazonaws.com'),
 		});
-		ioTCoreCredentialProviderRole.addToPolicy(
-			new PolicyStatement({
-				effect: Effect.ALLOW,
-				actions: ['*'], // ここは後で修正すること
-				resources: ['*'],
-			})
-		);
 
 		const roleAliasId = props.context.getResourceId('iot-core-credential-provider-role-alias');
 		const roleAlias = new CfnRoleAlias(this, roleAliasId, {
@@ -145,7 +143,22 @@ export class MainStack extends Stack {
 		const helloResource = restApi.root.addResource('hello');
 
 		initResource.addMethod('POST', createCertificateLambdaIntegration, {});
-		helloResource.addMethod('GET', helloLambdaIntegration, {});
+		helloResource.addMethod('GET', helloLambdaIntegration, {
+			authorizationType: AuthorizationType.IAM, // IAM認証を必須化
+		});
+
+		/////////////////////////////////////////////////////////////////////////////
+		// Attach Policy to Role assumed by IoT Device
+		/////////////////////////////////////////////////////////////////////////////
+		ioTCoreCredentialProviderRole.addToPolicy(
+			new PolicyStatement({
+				effect: Effect.ALLOW,
+				actions: ['execute-api:Invoke'], // APIGateway実行権限（IAM認証されたAPI用）
+				resources: [
+					`arn:aws:execute-api:${region}:${accountId}:${restApi.restApiId}/*/GET/hello`,
+				],
+			})
+		);
 
 		/////////////////////////////////////////////////////////////////////////////
 		// API URL
