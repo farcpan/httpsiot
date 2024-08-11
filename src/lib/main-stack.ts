@@ -12,6 +12,7 @@ import {
 	Cors,
 	LambdaIntegration,
 	AuthorizationType,
+	MethodLoggingLevel,
 } from 'aws-cdk-lib/aws-apigateway';
 import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { CfnPolicy, CfnRoleAlias } from 'aws-cdk-lib/aws-iot';
@@ -127,7 +128,9 @@ export class MainStack extends Stack {
 		const restApi = new RestApi(this, restApiId, {
 			restApiName: restApiId,
 			endpointTypes: [EndpointType.REGIONAL],
-			deployOptions: { stageName: stageName },
+			deployOptions: {
+				stageName: stageName,
+			},
 			defaultCorsPreflightOptions: {
 				allowOrigins: Cors.ALL_ORIGINS,
 				allowMethods: ['GET', 'PUT', 'POST', 'DELETE', 'OPTIONS'],
@@ -141,9 +144,14 @@ export class MainStack extends Stack {
 
 		const initResource = restApi.root.addResource('init');
 		const helloResource = restApi.root.addResource('hello');
+		const iotThingResource = restApi.root.addResource('{thingName}');
+		const testResource = iotThingResource.addResource('test'); // /{thingName}/test
 
 		initResource.addMethod('POST', createCertificateLambdaIntegration, {});
 		helloResource.addMethod('GET', helloLambdaIntegration, {
+			authorizationType: AuthorizationType.IAM, // IAM認証を必須化
+		});
+		testResource.addMethod('GET', helloLambdaIntegration, {
 			authorizationType: AuthorizationType.IAM, // IAM認証を必須化
 		});
 
@@ -155,7 +163,8 @@ export class MainStack extends Stack {
 				effect: Effect.ALLOW,
 				actions: ['execute-api:Invoke'], // APIGateway実行権限（IAM認証されたAPI用）
 				resources: [
-					`arn:aws:execute-api:${region}:${accountId}:${restApi.restApiId}/*/GET/hello`,
+					`arn:aws:execute-api:${region}:${accountId}:${restApi.restApiId}/${restApi.deploymentStage.stageName}/*/hello`,
+					`arn:aws:execute-api:${region}:${accountId}:${restApi.restApiId}/${restApi.deploymentStage.stageName}/*/\${credentials-iot:ThingName}/test`,
 				],
 			})
 		);
