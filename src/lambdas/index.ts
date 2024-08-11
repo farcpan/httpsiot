@@ -13,7 +13,7 @@ export const createCertificateHandler = async (event: any, context: any) => {
 	const region = process.env['region'];
 	const accountId = process.env['accountId'];
 	const stage = process.env['stage'];
-	const roleAlias = process.env['roleAlias'];
+	const policyName = process.env['policyName'];
 
 	// リクエスト
 	const body = event.body;
@@ -27,33 +27,6 @@ export const createCertificateHandler = async (event: any, context: any) => {
 		await client.send(
 			new CreateThingCommand({
 				thingName: thingName,
-			})
-		);
-	} catch (e) {
-		return getResponse({
-			statusCode: 500,
-			body: JSON.stringify(e),
-		});
-	}
-
-	// ポリシー作成
-	/// AssumeRoleによりSTSトークンを取得できるようにする
-	/// CDK側で作成したRoleのAliasを指定してAssumeRole権限をポリシーに付与する
-	const policyName = 'httpsiot_policy_' + id;
-	try {
-		await client.send(
-			new CreatePolicyCommand({
-				policyName: policyName,
-				policyDocument: JSON.stringify({
-					Version: '2012-10-17',
-					Statement: [
-						{
-							Effect: 'Allow',
-							Action: ['iot:AssumeRoleWithCertificate'],
-							Resource: [roleAlias],
-						},
-					],
-				}),
 			})
 		);
 	} catch (e) {

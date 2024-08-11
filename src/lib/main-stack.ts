@@ -8,7 +8,7 @@ import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Table } from 'aws-cdk-lib/aws-dynamodb';
 import { EndpointType, RestApi, Cors, LambdaIntegration } from 'aws-cdk-lib/aws-apigateway';
 import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
-import { CfnRoleAlias } from 'aws-cdk-lib/aws-iot';
+import { CfnPolicy, CfnRoleAlias } from 'aws-cdk-lib/aws-iot';
 
 interface MainStackProps extends StackProps {
 	context: ContextParameters;
@@ -48,6 +48,24 @@ export class MainStack extends Stack {
 		});
 
 		/////////////////////////////////////////////////////////////////////////////
+		// IoT Policy attached to Thing
+		/////////////////////////////////////////////////////////////////////////////
+		const iotPolicyId = props.context.getResourceId('iot-policy');
+		const iotPolicy = new CfnPolicy(this, iotPolicyId, {
+			policyName: iotPolicyId,
+			policyDocument: {
+				Version: '2012-10-17',
+				Statement: [
+					{
+						Effect: 'Allow',
+						Action: ['iot:AssumeRoleWithCertificate'],
+						Resource: [roleAlias.attrRoleAliasArn], // Role AliasのARNを指定する
+					},
+				],
+			},
+		});
+
+		/////////////////////////////////////////////////////////////////////////////
 		// DynamoDB
 		/////////////////////////////////////////////////////////////////////////////
 		/*
@@ -72,7 +90,7 @@ export class MainStack extends Stack {
 				region: region,
 				accountId: accountId,
 				stage: props.context.stage,
-				roleAlias: roleAlias.attrRoleAliasArn,
+				policyName: iotPolicy.policyName ?? iotPolicyId,
 			},
 			runtime: Runtime.NODEJS_LATEST,
 			timeout: Duration.seconds(30),
