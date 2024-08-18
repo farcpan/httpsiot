@@ -39,3 +39,10 @@ https://{IoTCore Endpoint}/role-aliases/{role alias}/credentials
 * `{role alias}`には作成したロールエイリアス名を指定する
 
 ---
+
+## メモ
+
+* RestAPIの代わりにHttpAPIは利用できない
+    * HttpAPIの場合、パスに変数（今回の例ではIoT CoreのThingName）を設定した場合にAPIのARNに変数が含まれないため
+
+---
